@@ -1,0 +1,94 @@
+import pandas as pd
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.metrics.pairwise import linear_kernel
+
+# 1. Create a Dummy Dataset
+# In a real project, you would load this from a CSV file (e.g., pd.read_csv('movies.csv'))
+data = {
+    'Title': [
+        'The Matrix', 
+        'Star Wars', 
+        'The Godfather', 
+        'Pulp Fiction', 
+        'Blade Runner', 
+        'Toy Story', 
+        'The Lion King',
+        'Interstellar'
+    ],
+    'Genre': [
+        'Sci-Fi Action', 
+        'Sci-Fi Adventure', 
+        'Crime Drama', 
+        'Crime Thriller', 
+        'Sci-Fi Thriller', 
+        'Animation Children', 
+        'Animation Children',
+        'Sci-Fi Adventure'
+    ],
+    'Description': [
+        'A computer hacker learns from mysterious rebels about the true nature of his reality and his role in the war against its controllers.',
+        'Luke Skywalker joins forces with a Jedi Knight, a cocky pilot, a Wookiee and two droids to save the galaxy from the Empire.',
+        'The aging patriarch of an organized crime dynasty transfers control of his clandestine empire to his reluctant son.',
+        'The lives of two mob hitmen, a boxer, a gangster and his wife, and a pair of diner bandits intertwine in four tales of violence and redemption.',
+        'A blade runner must pursue and terminate four replicants who stole a ship in space, and have returned to Earth to find their creator.',
+        'A cowboy doll is profoundly threatened and jealous when a new spaceman figure supplants him as top toy in a boy\'s room.',
+        'Lion prince Simba and his father are targeted by his bitter uncle, who wants to ascend the throne himself.',
+        'A team of explorers travel through a wormhole in space in an attempt to ensure humanity\'s survival.'
+    ]
+}
+
+df = pd.DataFrame(data)
+
+print("--- Data Sample ---")
+print(df[['Title', 'Genre']].head())
+print("-" * 30)
+
+# 2. Vectorization (TF-IDF)
+# This converts the 'Description' text into a matrix of numbers.
+# stop_words='english' removes common words like "the", "a", "in" which don't add meaning.
+tfidf = TfidfVectorizer(stop_words='english')
+
+# Construct the TF-IDF Matrix
+tfidf_matrix = tfidf.fit_transform(df['Description'])
+
+print(f"Matrix Shape: {tfidf_matrix.shape} (Movies, Unique Words)")
+
+# 3. Compute Similarity Score
+# We use Cosine Similarity to calculate the angle between vectors. 
+# A score of 1.0 means identical, 0.0 means completely different.
+cosine_sim = linear_kernel(tfidf_matrix, tfidf_matrix)
+
+# 4. Define the Recommendation Function
+def get_recommendations(title, cosine_sim=cosine_sim):
+    try:
+        # Get the index of the movie that matches the title
+        idx = df.index[df['Title'] == title][0]
+
+        # Get the pairwise similarity scores of all movies with that movie
+        sim_scores = list(enumerate(cosine_sim[idx]))
+
+        # Sort the movies based on the similarity scores (highest first)
+        sim_scores = sorted(sim_scores, key=lambda x: x[1], reverse=True)
+
+        # Get the scores of the 3 most similar movies (ignoring the first one which is itself)
+        sim_scores = sim_scores[1:4]
+
+        # Get the movie indices
+        movie_indices = [i[0] for i in sim_scores]
+
+        # Return the top 3 most similar movies
+        return df['Title'].iloc[movie_indices]
+    except IndexError:
+        return "Movie not found in database."
+
+# --- TESTING THE SYSTEM ---
+
+test_movie = 'The Matrix'
+print(f"\n--- Recommendations for '{test_movie}' ---")
+recommendations = get_recommendations(test_movie)
+print(recommendations)
+
+test_movie_2 = 'The Lion King'
+print(f"\n--- Recommendations for '{test_movie_2}' ---")
+recommendations_2 = get_recommendations(test_movie_2)
+print(recommendations_2)
